@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saccade Vision Trainer | Eye Focus Exercise</title>
+    <!-- Load Tailwind CSS for responsive styling and clean UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Inter font for clean, legible typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0B0F17; /* Deep eye-friendly slate/obsidian */
+            color: #E2E8F0;
+            overflow: hidden; /* Prevent scrolling during exercise */
+            user-select: none;
+        }
+
+        /* Subtle breathing glow for the central anchor dot */
+        @keyframes anchorPulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.06); }
+        }
+
+        .anchor-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 9999px;
+            z-index: 20;
+            transition: width 0.2s ease, height 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .anchor-active {
+            animation: anchorPulse 3s infinite ease-in-out;
+        }
+
+        /* Peripheral target dot styling */
+        .target-dot {
+            position: absolute;
+            transform: translate(-50%, -50%) scale(0.6);
+            border-radius: 9999px;
+            z-index: 15;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.06s ease-out, transform 0.08s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .target-dot.visible {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        /* Custom sleek range sliders */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: #1E293B;
+            height: 6px;
+            border-radius: 999px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #38BDF8;
+            cursor: pointer;
+            transition: transform 0.1s ease, background-color 0.1s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            background: #7DD3FC;
+        }
+
+        /* Glassmorphism panel */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+</head>
+<body class="h-screen w-screen relative flex flex-col justify-between">
+
+    <!-- Top Session Progress Bar -->
+    <div class="w-full h-1.5 bg-slate-900 z-30 relative">
+        <div id="progressBar" class="h-full bg-sky-400 transition-all duration-200 ease-linear w-0"></div>
+    </div>
+
+    <!-- Top Header & Minimal Stats Bar -->
+    <header class="w-full px-4 sm:px-6 py-3 flex items-center justify-between z-30 pointer-events-none">
+        <div class="flex items-center gap-3 pointer-events-auto">
+            <div class="w-3 h-3 rounded-full bg-sky-400 shadow-[0_0_10px_#38BDF8]"></div>
+            <h1 class="text-sm sm:text-base font-semibold tracking-wide text-slate-200">Saccade Vision Trainer</h1>
+        </div>
+
+        <!-- Live Stats & Panel Toggle -->
+        <div class="flex items-center gap-2 sm:gap-4 pointer-events-auto">
+            <div class="glass-panel px-3 py-1.5 rounded-full flex items-center gap-3 text-xs sm:text-sm text-slate-300">
+                <span title="Peripheral flashes completed">
+                    Flashes: <strong id="flashCounter" class="text-white font-semibold">0</strong>
+                </span>
+                <span class="text-slate-600">|</span>
+                <span title="Remaining session time">
+                    Time: <strong id="timeDisplay" class="text-sky-400 font-mono">01:00</strong>
+                </span>
+            </div>
+
+            <!-- Info / Instructions Button -->
+            <button id="toggleInfoBtn" aria-label="How to use" class="glass-panel hover:bg-slate-800 text-slate-300 hover:text-white p-2 rounded-full transition" title="Exercise Instructions">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </button>
+
+            <!-- Toggle Controls Panel Visibility -->
+            <button id="toggleControlsBtn" class="glass-panel hover:bg-slate-800 text-slate-200 px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium flex items-center gap-1.5 transition">
+                <svg id="eyeIcon" class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                </svg>
+                <span id="toggleControlsText">Hide Controls</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Exercise Arena (Full Viewport) -->
+    <main id="exerciseArena" class="absolute inset-0 w-full h-full overflow-hidden">
+        <!-- Subtle Crosshair Guides for Spatial Reference -->
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.04]">
+            <div class="w-full h-[1px] bg-slate-200"></div>
+        </div>
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.04]">
+            <div class="h-full w-[1px] bg-slate-200"></div>
+        </div>
+
+        <!-- Central Anchor Dot (Persistent Baseline Focus) -->
+        <div id="anchorDot" class="anchor-dot anchor-active" style="width: 18px; height: 18px; background-color: #FFFFFF; box-shadow: 0 0 16px rgba(255, 255, 255, 0.6);">
+            <!-- Tiny inner pinpoint for crisp foveal focus -->
+            <div class="w-1.5 h-1.5 bg-slate-900 rounded-full absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
+        </div>
+
+        <!-- Dynamic Peripheral Target Dot -->
+        <div id="targetDot" class="target-dot"></div>
+
+        <!-- Floating Status Toast / Completion Message -->
+        <div id="statusToast" class="hidden absolute top-20 left-1/2 -translate-x-1/2 glass-panel px-5 py-2.5 rounded-full text-sm font-medium text-sky-300 shadow-xl z-30 transition-opacity duration-300">
+            Session Complete! Great focus.
+        </div>
+    </main>
+
+    <!-- Instructions Modal (Hidden by default, accessible anytime) -->
+    <div id="infoModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="glass-panel max-w-md w-full rounded-2xl p-6 shadow-2xl border border-slate-700/70">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
+                    How to Perform This Exercise
+                </h2>
+                <button id="closeInfoBtn" class="text-slate-400 hover:text-white p-1 rounded-lg transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <ol class="space-y-3 text-sm text-slate-300 leading-relaxed list-decimal list-inside">
+                <li><strong class="text-white">Keep your head still:</strong> Sit comfortably at arm's length from your screen. Only move your eyes, not your neck.</li>
+                <li><strong class="text-white">Anchor your gaze:</strong> Focus steadily on the central white dot.</li>
+                <li><strong class="text-white">Quick saccade shift:</strong> As soon as a colored dot flashes in your peripheral vision, snap your eyes directly onto it.</li>
+                <li><strong class="text-white">Return to center:</strong> Immediately shift your focus back to the center dot as the peripheral dot vanishes.</li>
+                <li><strong class="text-white">Rest & Blink:</strong> Remember to blink naturally. Stop immediately if you feel eye strain or dizziness.</li>
+            </ol>
+            <div class="mt-6 flex justify-end">
+                <button id="gotItBtn" class="bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold px-5 py-2 rounded-xl text-sm transition">
+                    Got it
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Controls Dock -->
+    <footer id="controlsPanel" class="w-full max-w-4xl mx-auto px-4 pb-4 sm:pb-6 z-30 transition-all duration-300 ease-in-out">
+        <div class="glass-panel rounded-2xl p-4 sm:p-5 shadow-2xl">
+            
+            <!-- Primary Action Row: Play/Pause, Reset, Sound & Quick Hint -->
+            <div class="flex flex-wrap items-center justify-between gap-3 pb-4 mb-4 border-b border-slate-800/80">
+                <div class="flex items-center gap-2.5">
+                    <button id="startPauseBtn" class="bg-sky-500 hover:bg-sky-400 active:scale-95 text-slate-950 font-semibold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 transition shadow-lg shadow-sky-500/20">
+                        <svg id="playIcon" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/>
+                        </svg>
+                        <svg id="pauseIcon" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zM12.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z"/>
+                        </svg>
+                        <span id="startPauseText">Start Exercise</span>
+                    </button>
+
+                    <button id="resetBtn" class="bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 font-medium px-4 py-2.5 rounded-xl text-sm transition">
+                        Reset
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <!-- Subtle Audio Cue Toggle -->
+                    <button id="audioToggleBtn" class="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 text-xs sm:text-sm transition" title="Toggle soft audio ping when dot appears">
+                        <svg id="audioOnIcon" class="w-4 h-4 text-sky-400 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+                        </svg>
+                        <svg id="audioOffIcon" class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path>
+                        </svg>
+                        <span id="audioLabel">Audio: Off</span>
+                    </button>
+
+                    <span class="hidden md:inline-block text-xs text-slate-500">
+                        Press <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300">Space</kbd> to Start/Pause
+                    </span>
+                </div>
+            </div>
+
+            <!-- Customization Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-xs sm:text-sm">
+                
+                <!-- 1. Flash Duration (Speed) -->
+                <div class="flex flex-col justify-between bg-slate-900/60 p-3 rounded-xl border border-slate-800/60">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="durationSlider" class="text-slate-400 font-medium">Flash Speed</label>
+                        <span id="durationVal" class="text-sky-400 font-mono font-semibold">350ms</span>
+                    </div>
+                    <input type="range" id="durationSlider" min="150" max="1000" step="25" value="350" class="w-full">
+                    <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                        <span>Fast (150ms)</span>
+                        <span>Slow (1s)</span>
+                    </div>
+                </div>
+
+                <!-- 2. Interval / Rest Time -->
+                <div class="flex flex-col justify-between bg-slate-900/60 p-3 rounded-xl border border-slate-800/60">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="intervalSlider" class="text-slate-400 font-medium">Rest Interval</label>
+                        <span id="intervalVal" class="text-sky-400 font-mono font-semibold">1200ms</span>
+                    </div>
+                    <input type="range" id="intervalSlider" min="500" max="3000" step="100" value="1200" class="w-full">
+                    <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                        <span>Rapid (0.5s)</span>
+                        <span>Relaxed (3s)</span>
+                    </div>
+                </div>
+
+                <!-- 3. Dot Size -->
+                <div class="flex flex-col justify-between bg-slate-900/60 p-3 rounded-xl border border-slate-800/60">
+                    <span class="text-slate-400 font-medium mb-2">Dot Size</span>
+                    <div class="grid grid-cols-3 gap-1.5" id="sizeSelector">
+                        <button data-size="sm" class="size-btn py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium transition text-xs">Small</button>
+                        <button data-size="md" class="size-btn py-1.5 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-500/50 font-semibold transition text-xs">Med</button>
+                        <button data-size="lg" class="size-btn py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium transition text-xs">Large</button>
+                    </div>
+                </div>
+
+                <!-- 4. High-Contrast Target Color -->
+                <div class="flex flex-col justify-between bg-slate-900/60 p-3 rounded-xl border border-slate-800/60">
+                    <span class="text-slate-400 font-medium mb-2">Target Color</span>
+                    <div class="flex items-center justify-between gap-1.5" id="colorSelector">
+                        <button data-color="#EF4444" data-glow="rgba(239,68,68,0.65)" class="color-btn w-7 h-7 rounded-full bg-red-500 ring-2 ring-offset-2 ring-offset-slate-900 ring-white transition" title="High-Contrast Red"></button>
+                        <button data-color="#22C55E" data-glow="rgba(34,197,94,0.65)" class="color-btn w-7 h-7 rounded-full bg-green-500 opacity-70 hover:opacity-100 transition" title="Vibrant Green"></button>
+                        <button data-color="#38BDF8" data-glow="rgba(56,189,248,0.65)" class="color-btn w-7 h-7 rounded-full bg-sky-400 opacity-70 hover:opacity-100 transition" title="Electric Cyan"></button>
+                        <button data-color="#FACC15" data-glow="rgba(250,204,21,0.65)" class="color-btn w-7 h-7 rounded-full bg-yellow-400 opacity-70 hover:opacity-100 transition" title="Bright Yellow"></button>
+                    </div>
+                </div>
+
+                <!-- 5. Session Timer -->
+                <div class="flex flex-col justify-between bg-slate-900/60 p-3 rounded-xl border border-slate-800/60">
+                    <span class="text-slate-400 font-medium mb-2">Session Timer</span>
+                    <div class="grid grid-cols-4 gap-1" id="timerSelector">
+                        <button data-time="30" class="timer-btn py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium transition text-xs">30s</button>
+                        <button data-time="60" class="timer-btn py-1.5 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-500/50 font-semibold transition text-xs">1m</button>
+                        <button data-time="120" class="timer-btn py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium transition text-xs">2m</button>
+                        <button data-time="0" class="timer-btn py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium transition text-xs" title="Endless Mode">∞</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        /**
+         * Saccade Vision Trainer Application Logic
+         * Manages peripheral dot spawning, precision timing, Web Audio cues, and session controls.
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const arena = document.getElementById('exerciseArena');
+            const anchorDot = document.getElementById('anchorDot');
+            const targetDot = document.getElementById('targetDot');
+            const progressBar = document.getElementById('progressBar');
+            const flashCounterEl = document.getElementById('flashCounter');
+            const timeDisplayEl = document.getElementById('timeDisplay');
+            const statusToast = document.getElementById('statusToast');
+
+            // Controls & Buttons
+            const startPauseBtn = document.getElementById('startPauseBtn');
+            const startPauseText = document.getElementById('startPauseText');
+            const playIcon = document.getElementById('playIcon');
+            const pauseIcon = document.getElementById('pauseIcon');
+            const resetBtn = document.getElementById('resetBtn');
+            const audioToggleBtn = document.getElementById('audioToggleBtn');
+            const audioOnIcon = document.getElementById('audioOnIcon');
+            const audioOffIcon = document.getElementById('audioOffIcon');
+            const audioLabel = document.getElementById('audioLabel');
+
+            // Panel & Modal Toggles
+            const controlsPanel = document.getElementById('controlsPanel');
+            const toggleControlsBtn = document.getElementById('toggleControlsBtn');
+            const toggleControlsText = document.getElementById('toggleControlsText');
+            const toggleInfoBtn = document.getElementById('toggleInfoBtn');
+            const infoModal = document.getElementById('infoModal');
+            const closeInfoBtn = document.getElementById('closeInfoBtn');
+            const gotItBtn = document.getElementById('gotItBtn');
+
+            // Parameter Inputs
+            const durationSlider = document.getElementById('durationSlider');
+            const durationVal = document.getElementById('durationVal');
+            const intervalSlider = document.getElementById('intervalSlider');
+            const intervalVal = document.getElementById('intervalVal');
+            const sizeBtns = document.querySelectorAll('.size-btn');
+            const colorBtns = document.querySelectorAll('.color-btn');
+            const timerBtns = document.querySelectorAll('.timer-btn');
+
+            // --- Application State ---
+            const state = {
+                isRunning: false,
+                flashDuration: 350,     // ms peripheral dot stays visible
+                restInterval: 1200,     // ms between flashes
+                dotSize: 'md',          // 'sm' | 'md' | 'lg'
+                targetColor: '#EF4444', // Default high-contrast red
+                targetGlow: 'rgba(239,68,68,0.65)',
+                sessionDuration: 60,    // seconds (0 = endless)
+                remainingTime: 60,      // seconds
+                flashesCompleted: 0,
+                audioEnabled: false,
+                controlsVisible: true,
+                lastAngle: null         // Prevent consecutive dots in exact same direction
+            };
+
+            // Size mapping in pixels
+            const sizeMap = {
+                sm: { target: 14, anchor: 14 },
+                md: { target: 22, anchor: 18 },
+                lg: { target: 32, anchor: 22 }
+            };
+
+            // Timers & Web Audio Context
+            let spawnTimeout = null;
+            let hideTimeout = null;
+            let countdownInterval = null;
+            let audioCtx = null;
+
+            // --- Audio Synthesizer (Zero external assets) ---
+            function playSoftCue() {
+                if (!state.audioEnabled) return;
+                try {
+                    if (!audioCtx) {
+                        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                    if (audioCtx.state === 'suspended') {
+                        audioCtx.resume();
+                    }
+
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+
+                    // Gentle, non-startling sine tone
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(528, audioCtx.currentTime); // Soft harmonic pitch
+
+                    gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.06, audioCtx.currentTime + 0.015);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.09);
+
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.1);
+                } catch (e) {
+                    console.warn('Web Audio API unavailable:', e);
+                }
+            }
+
+            // --- Styling & Visual Updates ---
+            function applyDotAppearance() {
+                const dims = sizeMap[state.dotSize];
+                
+                // Update central anchor dot
+                anchorDot.style.width = `${dims.anchor}px`;
+                anchorDot.style.height = `${dims.anchor}px`;
+
+                // Update peripheral target dot
+                targetDot.style.width = `${dims.target}px`;
+                targetDot.style.height = `${dims.target}px`;
+                targetDot.style.backgroundColor = state.targetColor;
+                targetDot.style.boxShadow = `0 0 18px ${state.targetGlow}`;
+            }
+
+            function formatTime(seconds) {
+                if (state.sessionDuration === 0) return '∞';
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            }
+
+            function updateTimerUI() {
+                timeDisplayEl.textContent = formatTime(state.remainingTime);
+                if (state.sessionDuration > 0) {
+                    const elapsed = state.sessionDuration - state.remainingTime;
+                    const pct = Math.min(100, Math.max(0, (elapsed / state.sessionDuration) * 100));
+                    progressBar.style.width = `${pct}%`;
+                } else {
+                    progressBar.style.width = '0%';
+                }
+            }
+
+            function showToast(message) {
+                statusToast.textContent = message;
+                statusToast.classList.remove('hidden');
+                setTimeout(() => {
+                    statusToast.classList.add('hidden');
+                }, 3500);
+            }
+
+            // --- Peripheral Dot Positioning Algorithm ---
+            function getRandomPeripheralPosition() {
+                const width = arena.clientWidth;
+                const height = arena.clientHeight;
+                const centerX = width / 2;
+                const centerY = height / 2;
+
+                // Safe padding from screen edges (and bottom controls if visible)
+                const edgePadding = Math.max(40, sizeMap[state.dotSize].target * 1.8);
+                const bottomOffset = state.controlsVisible ? 190 : edgePadding;
+
+                // Minimum exclusion radius around center anchor dot so user must shift gaze
+                const minRadius = Math.min(width, height) * 0.16;
+
+                let x, y, dist, angle;
+                let attempts = 0;
+
+                do {
+                    x = edgePadding + Math.random() * (width - edgePadding * 2);
+                    y = edgePadding + Math.random() * (height - edgePadding - bottomOffset);
+
+                    const dx = x - centerX;
+                    const dy = y - centerY;
+                    dist = Math.hypot(dx, dy);
+                    angle = Math.atan2(dy, dx);
+                    attempts++;
+
+                    // Ensure minimum distance from center AND varied angular direction
+                    const angleDiff = state.lastAngle !== null ? Math.abs(angle - state.lastAngle) : Math.PI;
+                    if (dist >= minRadius && (angleDiff > 0.45 || attempts > 15)) {
+                        break;
+                    }
+                } while (attempts < 25);
+
+                state.lastAngle = angle;
+                return { x, y };
+            }
+
+            // --- Core Saccade Exercise Loop ---
+            function scheduleNextDot() {
+                if (!state.isRunning) return;
+
+                // Add slight natural jitter (±15%) to interval so user anticipates visually rather than rhythmically
+                const jitter = (Math.random() * 0.3 - 0.15) * state.restInterval;
+                const nextDelay = Math.max(250, state.restInterval + jitter);
+
+                spawnTimeout = setTimeout(() => {
+                    if (!state.isRunning) return;
+                    triggerPeripheralFlash();
+                }, nextDelay);
+            }
+
+            function triggerPeripheralFlash() {
+                const pos = getRandomPeripheralPosition();
+                targetDot.style.left = `${pos.x}px`;
+                targetDot.style.top = `${pos.y}px`;
+
+                // Show dot & trigger optional audio cue
+                targetDot.classList.add('visible');
+                playSoftCue();
+
+                state.flashesCompleted++;
+                flashCounterEl.textContent = state.flashesCompleted;
+
+                // Hide dot rapidly after flashDuration
+                hideTimeout = setTimeout(() => {
+                    targetDot.classList.remove('visible');
+                    if (state.isRunning) {
+                        scheduleNextDot();
+                    }
+                }, state.flashDuration);
+            }
+
+            // --- Session Playback Controls ---
+            function startExercise() {
+                if (state.isRunning) return;
+
+                // If session finished previously, reset timer before starting
+                if (state.sessionDuration > 0 && state.remainingTime <= 0) {
+                    resetExercise();
+                }
+
+                state.isRunning = true;
+                updatePlayPauseUI();
+                statusToast.classList.add('hidden');
+
+                // Start countdown timer if timed mode is selected
+                if (state.sessionDuration > 0) {
+                    countdownInterval = setInterval(() => {
+                        state.remainingTime--;
+                        updateTimerUI();
+
+                        if (state.remainingTime <= 0) {
+                            completeSession();
+                        }
+                    }, 1000);
+                }
+
+                // Trigger first flash shortly after starting
+                spawnTimeout = setTimeout(() => {
+                    if (state.isRunning) triggerPeripheralFlash();
+                }, 400);
+            }
+
+            function pauseExercise() {
+                state.isRunning = false;
+                clearTimeout(spawnTimeout);
+                clearTimeout(hideTimeout);
+                clearInterval(countdownInterval);
+                targetDot.classList.remove('visible');
+                updatePlayPauseUI();
+            }
+
+            function completeSession() {
+                pauseExercise();
+                progressBar.style.width = '100%';
+                showToast(`Session Complete! ${state.flashesCompleted} focus shifts completed.`);
+            }
+
+            function resetExercise() {
+                pauseExercise();
+                state.flashesCompleted = 0;
+                state.remainingTime = state.sessionDuration;
+                state.lastAngle = null;
+                flashCounterEl.textContent = '0';
+                updateTimerUI();
+                statusToast.classList.add('hidden');
+            }
+
+            function toggleStartPause() {
+                if (state.isRunning) {
+                    pauseExercise();
+                } else {
+                    startExercise();
+                }
+            }
+
+            function updatePlayPauseUI() {
+                if (state.isRunning) {
+                    startPauseText.textContent = 'Pause';
+                    playIcon.classList.add('hidden');
+                    pauseIcon.classList.remove('hidden');
+                    startPauseBtn.classList.replace('bg-sky-500', 'bg-amber-400');
+                    startPauseBtn.classList.replace('hover:bg-sky-400', 'hover:bg-amber-300');
+                    startPauseBtn.classList.replace('shadow-sky-500/20', 'shadow-amber-400/20');
+                } else {
+                    startPauseText.textContent = state.flashesCompleted > 0 && state.remainingTime > 0 ? 'Resume' : 'Start Exercise';
+                    playIcon.classList.remove('hidden');
+                    pauseIcon.classList.add('hidden');
+                    startPauseBtn.classList.replace('bg-amber-400', 'bg-sky-500');
+                    startPauseBtn.classList.replace('hover:bg-amber-300', 'hover:bg-sky-400');
+                    startPauseBtn.classList.replace('shadow-amber-400/20', 'shadow-sky-500/20');
+                }
+            }
+
+            // --- Event Listeners ---
+            startPauseBtn.addEventListener('click', toggleStartPause);
+            resetBtn.addEventListener('click', resetExercise);
+
+            // Spacebar shortcut to Start/Pause
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' && infoModal.classList.contains('hidden')) {
+                    e.preventDefault();
+                    toggleStartPause();
+                }
+            });
+
+            // Audio toggle
+            audioToggleBtn.addEventListener('click', () => {
+                state.audioEnabled = !state.audioEnabled;
+                if (state.audioEnabled) {
+                    audioOnIcon.classList.remove('hidden');
+                    audioOffIcon.classList.add('hidden');
+                    audioLabel.textContent = 'Audio: On';
+                    playSoftCue(); // Instant feedback beep
+                } else {
+                    audioOnIcon.classList.add('hidden');
+                    audioOffIcon.classList.remove('hidden');
+                    audioLabel.textContent = 'Audio: Off';
+                }
+            });
+
+            // Minimize / Show Controls Panel
+            toggleControlsBtn.addEventListener('click', () => {
+                state.controlsVisible = !state.controlsVisible;
+                if (state.controlsVisible) {
+                    controlsPanel.classList.remove('translate-y-[120%]', 'opacity-0', 'pointer-events-none');
+                    toggleControlsText.textContent = 'Hide Controls';
+                } else {
+                    controlsPanel.classList.add('translate-y-[120%]', 'opacity-0', 'pointer-events-none');
+                    toggleControlsText.textContent = 'Show Controls';
+                }
+            });
+
+            // Instructions Modal Handlers
+            toggleInfoBtn.addEventListener('click', () => {
+                if (state.isRunning) pauseExercise();
+                infoModal.classList.remove('hidden');
+            });
+            closeInfoBtn.addEventListener('click', () => infoModal.classList.add('hidden'));
+            gotItBtn.addEventListener('click', () => infoModal.classList.add('hidden'));
+            infoModal.addEventListener('click', (e) => {
+                if (e.target === infoModal) infoModal.classList.add('hidden');
+            });
+
+            // Flash Duration Slider
+            durationSlider.addEventListener('input', (e) => {
+                state.flashDuration = parseInt(e.target.value, 10);
+                durationVal.textContent = `${state.flashDuration}ms`;
+            });
+
+            // Rest Interval Slider
+            intervalSlider.addEventListener('input', (e) => {
+                state.restInterval = parseInt(e.target.value, 10);
+                intervalVal.textContent = `${state.restInterval}ms`;
+            });
+
+            // Dot Size Selector
+            sizeBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    sizeBtns.forEach(b => {
+                        b.className = 'size-btn py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium transition text-xs';
+                    });
+                    btn.className = 'size-btn py-1.5 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-500/50 font-semibold transition text-xs';
+                    state.dotSize = btn.dataset.size;
+                    applyDotAppearance();
+                });
+            });
+
+            // Target Color Selector
+            colorBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    colorBtns.forEach(b => {
+                        b.classList.remove('ring-2', 'ring-offset-2', 'ring-offset-slate-900', 'ring-white');
+                        b.classList.add('opacity-70');
+                    });
+                    btn.classList.add('ring-2', 'ring-offset-2', 'ring-offset-slate-900', 'ring-white');
+                    btn.classList.remove('opacity-70');
+                    state.targetColor = btn.dataset.color;
+                    state.targetGlow = btn.dataset.glow;
+                    applyDotAppearance();
+                });
+            });
+
+            // Session Timer Selector
+            timerBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    timerBtns.forEach(b => {
+                        b.className = 'timer-btn py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium transition text-xs';
+                    });
+                    btn.className = 'timer-btn py-1.5 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-500/50 font-semibold transition text-xs';
+                    state.sessionDuration = parseInt(btn.dataset.time, 10);
+                    resetExercise();
+                });
+            });
+
+            // Initialize initial dot visuals & timer display
+            applyDotAppearance();
+            updateTimerUI();
+        });
+    </script>
+</body>
+</html>
